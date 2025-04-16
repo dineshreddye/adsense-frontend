@@ -17,7 +17,7 @@ const firebaseConfig = {
 initializeApp(firebaseConfig);
 const auth = getAuth();
 const provider = new GoogleAuthProvider();
-const allowedEmails = ["dineshreddyedr@gmail.com", "tejas@example.com"];
+const allowedEmails = ["dineshreddyedr@gmail.com", "a.guggilla@clicksco.com"];
 
 export default function AdChecker() {
   const [user, setUser] = useState(null);
