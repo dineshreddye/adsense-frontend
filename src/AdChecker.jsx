@@ -58,7 +58,7 @@ export default function AdChecker() {
     images.forEach((image) => formData.append("images", image));
 
     try {
-      const response = await fetch("http://localhost:8000/analyze_with_gemini", {
+      const response = await fetch("https://adsense-backend.vercel.app/analyze_with_gemini", {
         method: "POST",
         body: formData,
       });
