@@ -1,14 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import AdResultCard from "./AdResultCard";
 import RewrittenAdCard from "./RewrittenAdCard";
+import { initializeApp } from "firebase/app";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+};
+
+
+initializeApp(firebaseConfig);
+const auth = getAuth();
+const provider = new GoogleAuthProvider();
+const allowedEmails = ["dineshreddyedr@gmail.com", "tejas@example.com"];
 
 export default function AdChecker() {
-  const getImageComplianceStatus = (score) => {
-    if (score < 40) return "❌ Image Not Compliant";
-    if (score < 50) return "⚠️ Image Relevance Warning";
-    return null;
-  };
-
+  const [user, setUser] = useState(null);
   const [url, setUrl] = useState("");
   const [headline, setHeadline] = useState("");
   const [description, setDescription] = useState("");
@@ -16,13 +28,26 @@ export default function AdChecker() {
   const [keywords, setKeywords] = useState("");
   const [images, setImages] = useState([]);
   const [result, setResult] = useState(null);
-  const [rewrite, setRewrite] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e, engine = "fast") => {
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const signIn = () => {
+    signInWithPopup(auth, provider).catch(console.error);
+  };
+
+  const signOutUser = () => {
+    signOut(auth);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setRewrite(null);
 
     const formData = new FormData();
     formData.append("url", url);
@@ -33,16 +58,7 @@ export default function AdChecker() {
     images.forEach((image) => formData.append("images", image));
 
     try {
-      let endpoint;
-      if (engine === "gemini") {
-        endpoint = "http://localhost:8000/analyze_with_gemini";
-      } else if (engine === true) {
-        endpoint = "http://localhost:8000/analyze_with_gpt";
-      } else {
-        endpoint = "http://localhost:8000/analyze_ad";
-      }
-
-      const response = await fetch(endpoint, {
+      const response = await fetch("http://localhost:8000/analyze_with_gemini", {
         method: "POST",
         body: formData,
       });
@@ -55,26 +71,32 @@ export default function AdChecker() {
     setLoading(false);
   };
 
-  const handleRewrite = async () => {
-    setLoading(true);
-    const formData = new FormData();
-    formData.append("url", url);
-    formData.append("headline", headline);
-    formData.append("description", description);
-    formData.append("primary_text", primaryText);
-
-    try {
-      const response = await fetch("http://localhost:8000/rewrite_ad_with_gpt", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      setRewrite(data);
-    } catch (err) {
-      console.error("Rewrite error:", err);
-    }
-    setLoading(false);
+  const getImageComplianceStatus = (score) => {
+    if (score < 40) return "❌ Image Not Compliant";
+    if (score < 50) return "⚠️ Image Relevance Warning";
+    return null;
   };
+
+  const isAuthorized = user && allowedEmails.includes(user.email);
+
+  if (!user || !isAuthorized) {
+    return (
+      <div className="max-w-4xl mx-auto px-6 py-10 min-h-screen flex flex-col justify-center items-center">
+        <h1 className="text-3xl font-bold text-center mb-6">🎯 AdSense Ad Compliance Checker</h1>
+        {!user && (
+          <button onClick={signIn} className="bg-blue-600 text-white px-6 py-2 rounded-xl shadow">
+            🔐 Login with Google
+          </button>
+        )}
+        {user && !isAuthorized && (
+          <div className="text-center text-red-600 mt-4">
+            🚫 You are not authorized to access this tool.
+            <button onClick={signOutUser} className="block text-sm text-gray-600 underline mt-2">Logout</button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 bg-gradient-to-br from-slate-50 to-white min-h-screen">
@@ -83,101 +105,24 @@ export default function AdChecker() {
           🎯 AdSense Ad Compliance Checker
         </h1>
 
+        <div className="text-center space-y-2">
+          <p className="text-sm text-gray-600">Logged in as: {user.email}</p>
+          <button onClick={signOutUser} className="text-sm text-red-500 underline">
+            Logout
+          </button>
+        </div>
+
         <form className="space-y-8" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Article URL *</label>
-            <input
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://example.com/article"
-            />
-          </div>
+          <input required className="w-full px-4 py-3 border rounded-xl" placeholder="Article URL" value={url} onChange={(e) => setUrl(e.target.value)} />
+          <input required className="w-full px-4 py-3 border rounded-xl" placeholder="Headline" value={headline} onChange={(e) => setHeadline(e.target.value)} />
+          <input required className="w-full px-4 py-3 border rounded-xl" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
+          <textarea required className="w-full px-4 py-3 border rounded-xl" rows={5} placeholder="Primary Text" value={primaryText} onChange={(e) => setPrimaryText(e.target.value)} />
+          <textarea className="w-full px-4 py-3 border rounded-xl" rows={2} placeholder="Image Description (optional)" value={keywords} onChange={(e) => setKeywords(e.target.value)} />
+          <input type="file" multiple accept="image/*" onChange={(e) => setImages([...e.target.files])} className="block w-full text-sm text-gray-600" />
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Headline *</label>
-            <input
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-              value={headline}
-              onChange={(e) => setHeadline(e.target.value)}
-              placeholder="Amazing Cleaning Services Near You"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Description *</label>
-            <input
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Book top-rated professionals instantly"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Primary Text *</label>
-            <textarea
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-              rows={5}
-              value={primaryText}
-              onChange={(e) => setPrimaryText(e.target.value)}
-              placeholder="Find affordable home cleaning services today — fast, professional, and eco-friendly!"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Optional: Describe your image</label>
-            <textarea
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-              rows={2}
-              value={keywords}
-              onChange={(e) => setKeywords(e.target.value)}
-              placeholder="e.g. woman vacuuming, kitchen cleanup, happy cleaner"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Upload Image(s)</label>
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={(e) => setImages([...e.target.files])}
-              className="block w-full text-sm text-gray-600"
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 pt-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow disabled:opacity-50"
-            >
-              {loading ? "Checking..." : "✅ Check with Fast AI"}
-            </button>
-
-            <button
-              type="button"
-              onClick={(e) => handleSubmit(e, true)}
-              disabled={loading}
-              className="w-full sm:w-auto px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl shadow disabled:opacity-50"
-            >
-              {loading ? "Checking GPT..." : "🤖 Check with GPT"}
-            </button>
-
-            <button
-              type="button"
-              onClick={(e) => handleSubmit(e, "gemini")}
-              disabled={loading}
-              className="w-full sm:w-auto px-6 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-xl shadow disabled:opacity-50"
-            >
-              {loading ? "Checking Gemini..." : "🌟 Check with Gemini"}
-            </button>
-          </div>
+          <button type="submit" disabled={loading} className="w-full px-6 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-xl shadow disabled:opacity-50">
+            {loading ? "Checking Gemini..." : "🌟 Check with Gemini"}
+          </button>
         </form>
 
         {loading && <p className="mt-6 text-sm text-gray-500 text-center">🔄 Analyzing, please wait...</p>}
@@ -190,7 +135,6 @@ export default function AdChecker() {
           </div>
         )}
         <AdResultCard result={result} />
-        <RewrittenAdCard rewritten={rewrite} />
       </div>
     </div>
   );
