@@ -1,8 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase";
 import AdResultCard from "./AdResultCard";
 import RewrittenAdCard from "./RewrittenAdCard";
 
+const allowedEmails = ["dineshreddyedr@gmail.com", "anotheruser@example.com"];
+
 const AdChecker = () => {
+  const [user, setUser] = useState(null);
+  const [accessAllowed, setAccessAllowed] = useState(false);
   const [url, setUrl] = useState("");
   const [headline, setHeadline] = useState("");
   const [description, setDescription] = useState("");
@@ -11,6 +17,18 @@ const AdChecker = () => {
   const [images, setImages] = useState([]);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser?.email && allowedEmails.includes(currentUser.email)) {
+        setAccessAllowed(true);
+      } else {
+        setAccessAllowed(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleSubmit = async (e, source = "adsense") => {
     e.preventDefault();
@@ -38,6 +56,22 @@ const AdChecker = () => {
 
     setLoading(false);
   };
+
+  if (!user) {
+    return (
+      <div className="text-center mt-20 text-lg text-gray-700">
+        🔐 Please log in to access the Ad Checker
+      </div>
+    );
+  }
+
+  if (!accessAllowed) {
+    return (
+      <div className="text-center mt-20 text-lg text-red-600 font-semibold">
+        ❌ Your account is not authorized to use this tool.
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 bg-gradient-to-br from-slate-50 to-white min-h-screen">
@@ -170,11 +204,10 @@ const AdChecker = () => {
         <AdResultCard result={result} />
         <RewrittenAdCard rewritten={null} />
         {result?.cost_usd && (
-  <div className="mt-4 text-sm text-gray-600 text-center">
-    💰 <strong>Cost:</strong> ${result.cost_usd} | 🔢 <strong>Tokens:</strong> {result.tokens?.total}
-  </div>
-)}
-
+          <div className="mt-4 text-sm text-gray-600 text-center">
+            💰 <strong>Cost:</strong> ${result.cost_usd} | 🔢 <strong>Tokens:</strong> {result.tokens?.total}
+          </div>
+        )}
       </div>
     </div>
   );
