@@ -4,7 +4,18 @@ import { initializeApp } from "firebase/app";
 import AdResultCard from "./AdResultCard";
 import RewrittenAdCard from "./RewrittenAdCard";
 
-const allowedEmails = ["youremail@example.com", "admin@example.com"];
+const allowedEmails = [
+  "mithun@clicksco.com",
+  "madhuri@clicksco.com",
+  "naresh@clicksco.com",
+  "sohitha@clicksco.com",
+  "clive@clicksco.com",
+  "a.guggilla@clicksco.com",
+  "viswanadh@clicksco.com",
+  "charitha@clicksco.com",
+  "arjun@clicksco.com",
+  "dineshreddyedr@gmail.com",
+];
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
