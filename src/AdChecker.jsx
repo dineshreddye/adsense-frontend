@@ -121,7 +121,7 @@ export default function AdChecker() {
           <input type="file" multiple accept="image/*" onChange={(e) => setImages([...e.target.files])} className="block w-full text-sm text-gray-600" />
 
           <button type="submit" disabled={loading} className="w-full px-6 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-xl shadow disabled:opacity-50">
-            {loading ? "Checking Gemini..." : "🌟 Check Adsense Compliance"}
+            {loading ? "Checking Compliance..." : "🌟 Check Adsense Compliance"}
           </button>
         </form>
 
