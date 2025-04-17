@@ -20,48 +20,17 @@ const provider = new GoogleAuthProvider();
 const AdChecker = () => {
   const [user, setUser] = useState(null);
   const [url, setUrl] = useState("");
-  const [headline, setHeadline] = useState("");
-  const [description, setDescription] = useState("");
+  const [headline, setHeadline] = useState([""]);
+  const [description, setDescription] = useState([""]);
   const [primaryText, setPrimaryText] = useState("");
   const [keywords, setKeywords] = useState("");
   const [images, setImages] = useState([]);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e, source = "adsense") => {
-    e.preventDefault();
-    setLoading(true);
-
-    const formData = new FormData();
-    formData.append("url", url);
-    formData.append("headline", headline);
-    formData.append("description", description);
-    formData.append("primary_text", primaryText);
-    formData.append("source", source);
-    formData.append("keywords", keywords);
-    images.forEach((image) => formData.append("images", image));
-
-    try {
-      const response = await fetch("https://adsense-backend.onrender.com/analyze_with_gemini", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      setResult(data);
-    } catch (err) {
-      console.error("Error:", err);
-    }
-
-    setLoading(false);
-  };
-
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUser(user);
-      } else {
-        setUser(null);
-      }
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u || null);
     });
     return () => unsubscribe();
   }, []);
@@ -76,6 +45,40 @@ const AdChecker = () => {
 
   const handleLogout = async () => {
     await signOut(auth);
+  };
+
+  const handleSubmit = async (e, source = "adsense") => {
+    e.preventDefault();
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append("url", url);
+    formData.append("primary_text", primaryText);
+    formData.append("source", source);
+    formData.append("keywords", keywords);
+
+    headline.forEach((h) => {
+      if (h?.trim()) formData.append("headline", h.trim());
+    });
+
+    description.forEach((d) => {
+      if (d?.trim()) formData.append("description", d.trim());
+    });
+
+    images.forEach((img) => formData.append("images", img));
+
+    try {
+      const res = await fetch("https://adsense-backend.onrender.com/analyze_with_gemini", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      setResult(data);
+    } catch (err) {
+      console.error("Error:", err);
+    }
+
+    setLoading(false);
   };
 
   if (!user) {
@@ -93,12 +96,14 @@ const AdChecker = () => {
     <div className="max-w-4xl mx-auto px-6 py-10 bg-gradient-to-br from-slate-50 to-white min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">🎯 AdSense Ad Compliance Checker</h1>
-        <button onClick={handleLogout} className="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-xl">Logout</button>
+        <button onClick={handleLogout} className="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-xl">
+          Logout
+        </button>
       </div>
 
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
+          <div className="space-y-2 sm:col-span-2">
             <label className="text-sm font-medium text-gray-700">Article URL *</label>
             <input
               required
@@ -110,27 +115,43 @@ const AdChecker = () => {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Headline *</label>
-            <input
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={headline}
-              onChange={(e) => setHeadline(e.target.value)}
-              placeholder="Eye-catching headline..."
-            />
-          </div>
+          {[...Array(10)].map((_, i) => (
+            <div key={`headline-${i}`} className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Headline {i + 1} {i === 0 && "*"}
+              </label>
+              <input
+                required={i === 0}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={headline[i] || ""}
+                onChange={(e) => {
+                  const updated = [...headline];
+                  updated[i] = e.target.value;
+                  setHeadline(updated);
+                }}
+                placeholder={`Headline ${i + 1}`}
+              />
+            </div>
+          ))}
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Description *</label>
-            <input
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Short ad description..."
-            />
-          </div>
+          {[...Array(10)].map((_, i) => (
+            <div key={`description-${i}`} className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Description {i + 1} {i === 0 && "*"}
+              </label>
+              <input
+                required={i === 0}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={description[i] || ""}
+                onChange={(e) => {
+                  const updated = [...description];
+                  updated[i] = e.target.value;
+                  setDescription(updated);
+                }}
+                placeholder={`Description ${i + 1}`}
+              />
+            </div>
+          ))}
 
           <div className="space-y-2 sm:col-span-2">
             <label className="text-sm font-medium text-gray-700">Primary Text *</label>
@@ -167,7 +188,7 @@ const AdChecker = () => {
           </div>
         </div>
 
-        <div className="pt-4">
+        <div className="pt-4 space-y-4">
           <button
             type="submit"
             disabled={loading}
@@ -177,7 +198,7 @@ const AdChecker = () => {
           </button>
 
           {result && (
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-4">
               <button
                 type="button"
                 onClick={(e) => handleSubmit(e, "facebook")}
