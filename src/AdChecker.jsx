@@ -4,6 +4,8 @@ import { initializeApp } from "firebase/app";
 import AdResultCard from "./AdResultCard";
 import RewrittenAdCard from "./RewrittenAdCard";
 
+const allowedEmails = ["youremail@example.com", "admin@example.com"];
+
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -27,10 +29,20 @@ const AdChecker = () => {
   const [images, setImages] = useState([]);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [unauthorized, setUnauthorized] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u || null);
+      if (u && allowedEmails.includes(u.email)) {
+        setUser(u);
+        setUnauthorized(false);
+      } else if (u) {
+        setUnauthorized(true);
+        setUser(null);
+        signOut(auth);
+      } else {
+        setUser(null);
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -81,6 +93,18 @@ const AdChecker = () => {
     setLoading(false);
   };
 
+  if (unauthorized) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <h2 className="text-xl font-semibold text-red-600 mb-4">Access restricted</h2>
+        <p className="text-gray-600 mb-4">Your email is not authorized to use this tool.</p>
+        <button onClick={handleLogout} className="bg-gray-600 text-white px-4 py-2 rounded-xl shadow hover:bg-gray-700">
+          Logout
+        </button>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
@@ -115,15 +139,15 @@ const AdChecker = () => {
             />
           </div>
 
-          {[...Array(10)].map((_, i) => (
-            <div key={`headline-${i}`} className="space-y-2">
+          {headline.map((h, i) => (
+            <div key={`headline-${i}`} className="space-y-2 relative">
               <label className="text-sm font-medium text-gray-700">
                 Headline {i + 1} {i === 0 && "*"}
               </label>
               <input
                 required={i === 0}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={headline[i] || ""}
+                value={h}
                 onChange={(e) => {
                   const updated = [...headline];
                   updated[i] = e.target.value;
@@ -131,18 +155,40 @@ const AdChecker = () => {
                 }}
                 placeholder={`Headline ${i + 1}`}
               />
+              {i > 0 && (
+                <button
+                  type="button"
+                  className="absolute top-1 right-1 text-xs text-red-500"
+                  onClick={() => {
+                    const updated = [...headline];
+                    updated.splice(i, 1);
+                    setHeadline(updated);
+                  }}
+                >
+                  Remove
+                </button>
+              )}
             </div>
           ))}
+          {headline.length < 10 && (
+            <button
+              type="button"
+              onClick={() => setHeadline([...headline, ""])}
+              className="text-blue-600 hover:underline text-sm"
+            >
+              ➕ Add Headline
+            </button>
+          )}
 
-          {[...Array(10)].map((_, i) => (
-            <div key={`description-${i}`} className="space-y-2">
+          {description.map((d, i) => (
+            <div key={`description-${i}`} className="space-y-2 relative">
               <label className="text-sm font-medium text-gray-700">
                 Description {i + 1} {i === 0 && "*"}
               </label>
               <input
                 required={i === 0}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={description[i] || ""}
+                value={d}
                 onChange={(e) => {
                   const updated = [...description];
                   updated[i] = e.target.value;
@@ -150,8 +196,30 @@ const AdChecker = () => {
                 }}
                 placeholder={`Description ${i + 1}`}
               />
+              {i > 0 && (
+                <button
+                  type="button"
+                  className="absolute top-1 right-1 text-xs text-red-500"
+                  onClick={() => {
+                    const updated = [...description];
+                    updated.splice(i, 1);
+                    setDescription(updated);
+                  }}
+                >
+                  Remove
+                </button>
+              )}
             </div>
           ))}
+          {description.length < 10 && (
+            <button
+              type="button"
+              onClick={() => setDescription([...description, ""])}
+              className="text-blue-600 hover:underline text-sm"
+            >
+              ➕ Add Description
+            </button>
+          )}
 
           <div className="space-y-2 sm:col-span-2">
             <label className="text-sm font-medium text-gray-700">Primary Text *</label>
