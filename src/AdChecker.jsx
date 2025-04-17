@@ -1,26 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import AdResultCard from "./AdResultCard";
 import RewrittenAdCard from "./RewrittenAdCard";
-import { initializeApp } from "firebase/app";
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
 
-const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-};
-
-
-initializeApp(firebaseConfig);
-const auth = getAuth();
-const provider = new GoogleAuthProvider();
-const allowedEmails = ["dineshreddyedr@gmail.com", "a.guggilla@clicksco.com"];
-
-export default function AdChecker() {
-  const [user, setUser] = useState(null);
+const AdChecker = () => {
   const [url, setUrl] = useState("");
   const [headline, setHeadline] = useState("");
   const [description, setDescription] = useState("");
@@ -30,22 +12,7 @@ export default function AdChecker() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const signIn = () => {
-    signInWithPopup(auth, provider).catch(console.error);
-  };
-
-  const signOutUser = () => {
-    signOut(auth);
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, source = "adsense") => {
     e.preventDefault();
     setLoading(true);
 
@@ -54,6 +21,7 @@ export default function AdChecker() {
     formData.append("headline", headline);
     formData.append("description", description);
     formData.append("primary_text", primaryText);
+    formData.append("source", source);
     formData.append("keywords", keywords);
     images.forEach((image) => formData.append("images", image));
 
@@ -71,33 +39,6 @@ export default function AdChecker() {
     setLoading(false);
   };
 
-  const getImageComplianceStatus = (score) => {
-    if (score < 40) return "❌ Image Not Compliant";
-    if (score < 50) return "⚠️ Image Relevance Warning";
-    return null;
-  };
-
-  const isAuthorized = user && allowedEmails.includes(user.email);
-
-  if (!user || !isAuthorized) {
-    return (
-      <div className="max-w-4xl mx-auto px-6 py-10 min-h-screen flex flex-col justify-center items-center">
-        <h1 className="text-3xl font-bold text-center mb-6">🎯 AdSense Ad Compliance Checker</h1>
-        {!user && (
-          <button onClick={signIn} className="bg-blue-600 text-white px-6 py-2 rounded-xl shadow">
-            🔐 Login with Google
-          </button>
-        )}
-        {user && !isAuthorized && (
-          <div className="text-center text-red-600 mt-4">
-            🚫 You are not authorized to access this tool.
-            <button onClick={signOutUser} className="block text-sm text-gray-600 underline mt-2">Logout</button>
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 bg-gradient-to-br from-slate-50 to-white min-h-screen">
       <div className="bg-white rounded-2xl shadow-xl p-10 space-y-8">
@@ -105,37 +46,138 @@ export default function AdChecker() {
           🎯 AdSense Ad Compliance Checker
         </h1>
 
-        <div className="text-center space-y-2">
-          <p className="text-sm text-gray-600">Logged in as: {user.email}</p>
-          <button onClick={signOutUser} className="text-sm text-red-500 underline">
-            Logout
-          </button>
-        </div>
+        <form className="space-y-6" onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Article URL *</label>
+              <input
+                required
+                type="url"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://example.com/article"
+              />
+            </div>
 
-        <form className="space-y-8" onSubmit={handleSubmit}>
-          <input required className="w-full px-4 py-3 border rounded-xl" placeholder="Article URL" value={url} onChange={(e) => setUrl(e.target.value)} />
-          <input required className="w-full px-4 py-3 border rounded-xl" placeholder="Headline" value={headline} onChange={(e) => setHeadline(e.target.value)} />
-          <input required className="w-full px-4 py-3 border rounded-xl" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
-          <textarea required className="w-full px-4 py-3 border rounded-xl" rows={5} placeholder="Primary Text" value={primaryText} onChange={(e) => setPrimaryText(e.target.value)} />
-          <textarea className="w-full px-4 py-3 border rounded-xl" rows={2} placeholder="Image Description (optional)" value={keywords} onChange={(e) => setKeywords(e.target.value)} />
-          <input type="file" multiple accept="image/*" onChange={(e) => setImages([...e.target.files])} className="block w-full text-sm text-gray-600" />
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Headline *</label>
+              <input
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={headline}
+                onChange={(e) => setHeadline(e.target.value)}
+                placeholder="Eye-catching headline..."
+              />
+            </div>
 
-          <button type="submit" disabled={loading} className="w-full px-6 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-xl shadow disabled:opacity-50">
-            {loading ? "Checking Compliance..." : "🌟 Check Adsense Compliance"}
-          </button>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Description *</label>
+              <input
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Short ad description..."
+              />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700">Primary Text *</label>
+              <textarea
+                required
+                rows={4}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={primaryText}
+                onChange={(e) => setPrimaryText(e.target.value)}
+                placeholder="Ad main content / body..."
+              />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700">Optional: Describe image</label>
+              <textarea
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={2}
+                value={keywords}
+                onChange={(e) => setKeywords(e.target.value)}
+                placeholder="e.g. woman vacuuming, product display, happy family"
+              />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <label className="text-sm font-medium text-gray-700">Upload Image(s)</label>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => setImages([...e.target.files])}
+                className="block w-full text-sm text-gray-600"
+              />
+            </div>
+          </div>
+
+          <div className="pt-4">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow disabled:opacity-50"
+            >
+              {loading ? "Checking..." : "✅ Check AdSense Compliance"}
+            </button>
+
+            {result && (
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={(e) => handleSubmit(e, "facebook")}
+                  disabled={loading}
+                  className="w-full sm:w-auto px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl shadow disabled:opacity-50"
+                >
+                  📘 Check for Facebook Ads
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleSubmit(e, "google_ads")}
+                  disabled={loading}
+                  className="w-full sm:w-auto px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl shadow disabled:opacity-50"
+                >
+                  🔍 Check for Google Ads
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleSubmit(e, "native")}
+                  disabled={loading}
+                  className="w-full sm:w-auto px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow disabled:opacity-50"
+                >
+                  📰 Check for Native (Taboola/Outbrain)
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleSubmit(e, "performance")}
+                  disabled={loading}
+                  className="w-full sm:w-auto px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl shadow disabled:opacity-50"
+                >
+                  📊 Check Ad Performance
+                </button>
+              </div>
+            )}
+          </div>
         </form>
-
-        {loading && <p className="mt-6 text-sm text-gray-500 text-center">🔄 Analyzing, please wait...</p>}
       </div>
 
       <div className="mt-10">
-        {result?.image_score !== undefined && getImageComplianceStatus(result.image_score) && (
-          <div className="mb-6 text-center text-sm font-medium text-yellow-800 bg-yellow-100 px-4 py-2 rounded-xl shadow-sm">
-            {getImageComplianceStatus(result.image_score)}
-          </div>
-        )}
         <AdResultCard result={result} />
+        <RewrittenAdCard rewritten={null} />
+        {result?.cost_usd && (
+  <div className="mt-4 text-sm text-gray-600 text-center">
+    💰 <strong>Cost:</strong> ${result.cost_usd} | 🔢 <strong>Tokens:</strong> {result.tokens?.total}
+  </div>
+)}
+
       </div>
     </div>
   );
-}
+};
+
+export default AdChecker;
